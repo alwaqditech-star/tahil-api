@@ -3,6 +3,7 @@ import { projects, expenses, extracts, tasks, users, projectAssignments } from "
 import { requireAuth, type SessionUser } from "@/lib/auth";
 import { createNotification } from "@/lib/notify";
 import { jsonResponse, optionsResponse } from "@/lib/cors";
+import { isDateBefore, todayDateOnly, todayISO } from "@/lib/dates";
 import { eq, and, sql, desc } from "drizzle-orm";
 
 export async function OPTIONS() {
@@ -16,7 +17,8 @@ export async function POST(request: Request) {
   const user = session as SessionUser;
   if (user.role !== "admin") return jsonResponse({ error: "ليس لديك صلاحية" }, 403);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayDateOnly();
+  const todayStr = todayISO();
   let created = 0;
 
   const allProjects = await db.select().from(projects).where(eq(projects.status, "active"));
@@ -24,7 +26,7 @@ export async function POST(request: Request) {
   const accountants = await db.select().from(users).where(and(eq(users.role, "accountant"), eq(users.isActive, true)));
 
   for (const p of allProjects) {
-    if (p.endDate && p.endDate < today) {
+    if (p.endDate && isDateBefore(p.endDate, todayStr)) {
       const [assignments] = await db.select().from(projectAssignments).where(eq(projectAssignments.projectId, p.id)).limit(1);
       const assigneeId = assignments?.userId ?? managers[0]?.id;
       if (!assigneeId) continue;

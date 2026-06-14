@@ -6,6 +6,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import { sql, eq } from "drizzle-orm";
 import * as schema from "../src/lib/schema";
+import { getMysqlPoolConfig } from "../src/lib/db-config";
 
 const {
   users,
@@ -41,7 +42,7 @@ const TABLES_TO_CLEAR = [
 ];
 
 async function main() {
-  const pool = mysql.createPool({ uri: process.env.DATABASE_URL, charset: "utf8mb4" });
+  const pool = mysql.createPool(getMysqlPoolConfig());
   const db = drizzle(pool, { schema, mode: "default" });
 
   console.log("🗑️  مسح جميع البيانات (ما عدا المستخدمين)...");

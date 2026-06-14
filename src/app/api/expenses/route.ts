@@ -101,7 +101,7 @@ export async function POST(request: Request) {
   const [created] = await db.select().from(expenses).orderBy(desc(expenses.id)).limit(1);
 
   const managers = await db.select({ id: users.id }).from(users).where(
-    and(eq(users.isActive, true), sql`${users.role} IN ('admin','project_manager')`)
+    and(eq(users.isActive, true), inArray(users.role, ["admin", "project_manager"]))
   );
   await notifyMany(managers.map((m) => m.id), {
     title: "مصروف جديد بانتظار الاعتماد",

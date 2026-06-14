@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { pettyCash } from "@/lib/schema";
 import { requireAuth, requireRole, type SessionUser } from "@/lib/auth";
 import { errorResponse, jsonResponse, optionsResponse, emptyResponse } from "@/lib/cors";
+import { toDateOnly } from "@/lib/dates";
 import { eq } from "drizzle-orm";
 
 export async function OPTIONS() {
@@ -36,7 +37,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     await db.update(pettyCash).set({
       status: "settled",
-      settledDate: new Date().toISOString().slice(0, 10),
+      settledDate: toDateOnly(body.settledDate ?? new Date().toISOString().slice(0, 10)),
       settledById: user.id,
       usedAmount: String(body.usedAmount ?? row.usedAmount),
       updatedAt: new Date(),

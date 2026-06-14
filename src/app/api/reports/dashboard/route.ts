@@ -5,6 +5,7 @@ import {
 } from "@/lib/schema";
 import { requireAuth, getScopedProjectIds, type SessionUser } from "@/lib/auth";
 import { jsonResponse, optionsResponse } from "@/lib/cors";
+import { isDateBefore, todayISO } from "@/lib/dates";
 import { eq, and, inArray, sql, desc } from "drizzle-orm";
 
 export async function OPTIONS() {
@@ -38,8 +39,8 @@ export async function GET(request: Request) {
   const totalProjects = projectRows.length;
   const activeProjects = projectRows.filter((p) => p.status === "active").length;
   const totalContractValue = projectRows.reduce((s, p) => s + Number(p.contractValue), 0);
-  const today = new Date().toISOString().slice(0, 10);
-  const delayedProjects = projectRows.filter((p) => p.endDate && p.endDate < today && p.status === "active").length;
+  const today = todayISO();
+  const delayedProjects = projectRows.filter((p) => isDateBefore(p.endDate, today) && p.status === "active").length;
 
   const [expR] = await db.select({ total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)` }).from(expenses).where(and(projectFilter, eq(expenses.status, "approved")));
   const [extR] = await db.select({ total: sql<string>`COALESCE(SUM(${extracts.amount}), 0)` }).from(extracts).where(and(extractFilter, sql`${extracts.status} IN ('approved','paid')`));

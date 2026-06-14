@@ -4,14 +4,13 @@
 import mysql from "mysql2/promise";
 import fs from "fs";
 import path from "path";
+import { getMysqlPoolConfig } from "../src/lib/db-config";
 
 async function main() {
-  const uri = process.env.DATABASE_URL;
-  if (!uri) throw new Error("DATABASE_URL missing");
-
-  const sql = fs.readFileSync(path.join(__dirname, "migrate-v3-catalog.sql"), "utf8");
-  const conn = await mysql.createConnection(uri);
-  const statements = sql.split(";").map((s) => s.trim()).filter(Boolean);
+  const cfg = getMysqlPoolConfig();
+  const conn = await mysql.createConnection(cfg);
+  const sqlFile = fs.readFileSync(path.join(__dirname, "migrate-v3-catalog.sql"), "utf8");
+  const statements = sqlFile.split(";").map((s) => s.trim()).filter(Boolean);
 
   for (const stmt of statements) {
     try {

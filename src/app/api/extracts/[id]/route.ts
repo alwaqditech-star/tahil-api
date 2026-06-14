@@ -4,6 +4,7 @@ import { requireAuth, requireRole, type SessionUser } from "@/lib/auth";
 import { canApproveExtractManager, canApproveExtractAccountant } from "@/lib/permissions";
 import { createNotification } from "@/lib/notify";
 import { errorResponse, jsonResponse, optionsResponse, emptyResponse } from "@/lib/cors";
+import { todayDateOnly } from "@/lib/dates";
 import { eq, sql, and } from "drizzle-orm";
 
 async function syncContractProgress(extractId: number) {
@@ -118,7 +119,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!canApproveExtractAccountant(user)) return errorResponse("ليس لديك صلاحية", 403);
     if (extract.status !== "approved") return errorResponse("يجب اعتماد المستخلص أولاً", 400);
     await db.update(extracts).set({
-      status: "paid", paidAt: new Date().toISOString().slice(0, 10), updatedAt: new Date(),
+      status: "paid", paidAt: todayDateOnly(), updatedAt: new Date(),
     }).where(eq(extracts.id, parseInt(id)));
   } else if (action === "reject") {
     if (!requireRole(user, "admin", "accountant")) return errorResponse("ليس لديك صلاحية", 403);

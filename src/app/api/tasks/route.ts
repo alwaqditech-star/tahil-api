@@ -4,6 +4,7 @@ import { requireAuth, getScopedProjectIds, type SessionUser } from "@/lib/auth";
 import { canCreateTaskFor, canViewAllTasks } from "@/lib/permissions";
 import { createNotification } from "@/lib/notify";
 import { errorResponse, jsonResponse, optionsResponse } from "@/lib/cors";
+import { isDateBefore, todayISO } from "@/lib/dates";
 import { eq, desc, and, inArray, or, sql, lt } from "drizzle-orm";
 
 function mapTask(t: typeof tasks.$inferSelect, extras?: Record<string, unknown>) {
@@ -58,8 +59,8 @@ export async function GET(request: Request) {
   if (status && status !== "all") rows = rows.filter((t) => t.status === status);
   if (projectId) rows = rows.filter((t) => t.projectId === parseInt(projectId));
   if (overdue) {
-    const today = new Date().toISOString().slice(0, 10);
-    rows = rows.filter((t) => t.dueDate && t.dueDate < today && !["completed", "rejected"].includes(t.status));
+    const today = todayISO();
+    rows = rows.filter((t) => t.dueDate && isDateBefore(t.dueDate, today) && !["completed", "rejected"].includes(t.status));
   }
 
   const userIds = [...new Set(rows.flatMap((t) => [t.assigneeId, t.createdById]))];
