@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { pettyCash, projects, users } from "@/lib/schema";
 import { requireAuth, requireRole, type SessionUser } from "@/lib/auth";
 import { createNotification } from "@/lib/notify";
+import { appPath } from "@/lib/web-url";
 import { errorResponse, jsonResponse, optionsResponse } from "@/lib/cors";
 import { eq, desc, and, or, inArray } from "drizzle-orm";
 
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
     title: "عهدة جديدة",
     message: `تم إصدار عهدة "${body.purpose}" بمبلغ ${body.allocatedAmount} ر.س`,
     type: "petty_cash",
-    link: `${process.env.WEB_ORIGIN ?? "http://localhost:3000"}/petty-cash`,
+    link: appPath("/petty-cash"),
     sendEmail: true,
   });
 

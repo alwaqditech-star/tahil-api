@@ -3,6 +3,7 @@ import { expenses, users } from "@/lib/schema";
 import { requireAuth, type SessionUser } from "@/lib/auth";
 import { canManagerApproveExpense, canAccountantApproveExpense, canEditResource, canDeleteResource } from "@/lib/permissions";
 import { createNotification } from "@/lib/notify";
+import { appPath } from "@/lib/web-url";
 import { errorResponse, jsonResponse, optionsResponse, emptyResponse } from "@/lib/cors";
 import { eq, and, sql } from "drizzle-orm";
 
@@ -68,7 +69,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         title: "مصروف بانتظار الاعتماد النهائي",
         message: `مصروف "${expense.title}" معتمد من المدير — بانتظار المحاسب`,
         type: "expense",
-        link: `${process.env.WEB_ORIGIN ?? "http://localhost:3000"}/expenses`,
+        link: appPath("/expenses"),
       });
     }
   } else if (action === "accountant_approve") {

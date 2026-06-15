@@ -2,6 +2,7 @@ import { db } from "./db";
 import { notifications, users } from "./schema";
 import { eq } from "drizzle-orm";
 import { sendEmail, taskEmailHtml } from "./email";
+import { getWebOrigin, toAppPath, webLink } from "./web-url";
 
 type NotifyInput = {
   userId: number;
@@ -18,11 +19,14 @@ export async function createNotification(input: NotifyInput) {
   let emailStatus: string | null = null;
   let emailSent = false;
 
+  const storedLink = input.link ? toAppPath(input.link) : null;
+  const emailLink = storedLink ? webLink(storedLink) : getWebOrigin();
+
   if (input.sendEmail && user?.email) {
     const result = await sendEmail(
       user.email,
       input.emailSubject ?? input.title,
-      taskEmailHtml(input.title, input.message, null, input.link ?? process.env.WEB_ORIGIN ?? "http://localhost:3000")
+      taskEmailHtml(input.title, input.message, null, emailLink)
     );
     emailSent = result.ok;
     emailStatus = result.status;
@@ -33,7 +37,7 @@ export async function createNotification(input: NotifyInput) {
     title: input.title,
     message: input.message,
     type: input.type ?? "info",
-    link: input.link ?? null,
+    link: storedLink,
     emailSent,
     emailStatus,
   });

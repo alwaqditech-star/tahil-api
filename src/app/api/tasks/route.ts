@@ -3,6 +3,7 @@ import { tasks, users, projects, contractors } from "@/lib/schema";
 import { requireAuth, getScopedProjectIds, type SessionUser } from "@/lib/auth";
 import { canCreateTaskFor, canViewAllTasks } from "@/lib/permissions";
 import { createNotification } from "@/lib/notify";
+import { appPath } from "@/lib/web-url";
 import { errorResponse, jsonResponse, optionsResponse } from "@/lib/cors";
 import { isDateBefore, todayISO } from "@/lib/dates";
 import { eq, desc, and, inArray, or, sql, lt } from "drizzle-orm";
@@ -114,14 +115,13 @@ export async function POST(request: Request) {
   });
 
   const [created] = await db.select().from(tasks).orderBy(desc(tasks.id)).limit(1);
-  const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
 
   await createNotification({
     userId: body.assigneeId,
     title: "مهمة جديدة",
     message: `تم إسناد مهمة: ${body.title}`,
     type: "task",
-    link: `${webOrigin}/tasks`,
+    link: appPath("/tasks"),
     sendEmail: true,
     emailSubject: `تأهيل الاعمار — مهمة جديدة: ${body.title}`,
   });

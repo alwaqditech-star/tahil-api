@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { projects, expenses, extracts, tasks, users, projectAssignments } from "@/lib/schema";
 import { requireAuth, type SessionUser } from "@/lib/auth";
 import { createNotification } from "@/lib/notify";
+import { appPath } from "@/lib/web-url";
 import { jsonResponse, optionsResponse } from "@/lib/cors";
 import { isDateBefore, todayDateOnly, todayISO } from "@/lib/dates";
 import { eq, and, sql, desc } from "drizzle-orm";
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
         sourceRef: "delayed_project",
         dueDate: today,
       });
-      await createNotification({ userId: assigneeId, title: "مهمة تلقائية", message: `تأخر مشروع ${p.name}`, type: "task", link: `${process.env.WEB_ORIGIN ?? "http://localhost:3000"}/tasks` });
+      await createNotification({ userId: assigneeId, title: "مهمة تلقائية", message: `تأخر مشروع ${p.name}`, type: "task", link: appPath("/tasks") });
       created++;
     }
 

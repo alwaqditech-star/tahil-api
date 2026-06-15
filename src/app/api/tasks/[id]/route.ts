@@ -3,6 +3,7 @@ import { tasks } from "@/lib/schema";
 import { requireAuth, getScopedProjectIds, type SessionUser } from "@/lib/auth";
 import { canDeleteResource, canManageTask } from "@/lib/permissions";
 import { createNotification } from "@/lib/notify";
+import { appPath } from "@/lib/web-url";
 import { errorResponse, jsonResponse, optionsResponse, emptyResponse } from "@/lib/cors";
 import { eq } from "drizzle-orm";
 
@@ -85,7 +86,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       title: "مهمة بانتظار المراجعة",
       message: `المهمة "${task.title}" جاهزة للمراجعة`,
       type: "task",
-      link: `${process.env.WEB_ORIGIN ?? "http://localhost:3000"}/tasks`,
+      link: appPath("/tasks"),
     });
   }
 

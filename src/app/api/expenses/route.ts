@@ -3,6 +3,7 @@ import { expenses, projects, users } from "@/lib/schema";
 import { requireAuth, getScopedProjectIds, type SessionUser } from "@/lib/auth";
 import { canCreateResource } from "@/lib/permissions";
 import { createNotification, notifyMany } from "@/lib/notify";
+import { appPath } from "@/lib/web-url";
 import { errorResponse, jsonResponse, optionsResponse } from "@/lib/cors";
 import { eq, and, inArray, desc } from "drizzle-orm";
 
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
     title: "مصروف جديد بانتظار الاعتماد",
     message: `${user.name} سجّل مصروف: ${body.title} — ${body.amount} ر.س`,
     type: "expense",
-    link: `${process.env.WEB_ORIGIN ?? "http://localhost:3000"}/expenses`,
+    link: appPath("/expenses"),
   });
 
   return jsonResponse(mapExpense(created!), 201);

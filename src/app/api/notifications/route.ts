@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { notifications } from "@/lib/schema";
 import { requireAuth, type SessionUser } from "@/lib/auth";
 import { errorResponse, jsonResponse, optionsResponse } from "@/lib/cors";
+import { toAppPath } from "@/lib/web-url";
 import { eq, desc, and } from "drizzle-orm";
 
 export async function OPTIONS() {
@@ -26,7 +27,10 @@ export async function GET(request: Request) {
 
   const unreadCount = rows.filter((r) => !r.isRead).length;
 
-  return jsonResponse({ items: rows, unreadCount });
+  return jsonResponse({
+    items: rows.map((r) => ({ ...r, link: r.link ? toAppPath(r.link) : null })),
+    unreadCount,
+  });
 }
 
 export async function PATCH(request: Request) {

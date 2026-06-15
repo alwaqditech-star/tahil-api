@@ -2,12 +2,13 @@ import type { PoolOptions } from "mysql2/promise";
 
 /** إعدادات الاتصال — يدعم SmarterASP (DB_*) أو DATABASE_URL */
 export function getMysqlPoolConfig(): PoolOptions {
+  const isServerless = Boolean(process.env.VERCEL);
   const common = {
     waitForConnections: true,
-    connectionLimit: 10,
+    connectionLimit: isServerless ? 1 : 10,
     charset: "utf8mb4" as const,
-    connectTimeout: 30000,
-    enableKeepAlive: true,
+    connectTimeout: isServerless ? 20000 : 30000,
+    enableKeepAlive: !isServerless,
   };
 
   if (process.env.DB_HOST) {

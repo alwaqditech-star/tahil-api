@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
+import { errorResponse } from "./cors";
 import { db } from "./db";
 import { users, projectAssignments } from "./schema";
 import { eq, or } from "drizzle-orm";
@@ -109,7 +110,7 @@ export async function getSessionUser(request: Request): Promise<SessionUser | nu
 
 export async function requireAuth(request: Request): Promise<SessionUser | Response> {
   const user = await getSessionUser(request);
-  if (!user) return new Response(JSON.stringify({ error: "غير مصرح بالدخول" }), { status: 401 });
+  if (!user) return errorResponse("غير مصرح بالدخول", 401, request.headers.get("origin"));
   return user;
 }
 

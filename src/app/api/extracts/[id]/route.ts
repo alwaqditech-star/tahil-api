@@ -3,6 +3,7 @@ import { extracts, extractLineItems, contractItems, projects, contractors } from
 import { requireAuth, requireRole, type SessionUser } from "@/lib/auth";
 import { canApproveExtractManager, canApproveExtractAccountant } from "@/lib/permissions";
 import { createNotification } from "@/lib/notify";
+import { appPath } from "@/lib/web-url";
 import { errorResponse, jsonResponse, optionsResponse, emptyResponse } from "@/lib/cors";
 import { todayDateOnly } from "@/lib/dates";
 import { eq, sql, and } from "drizzle-orm";
@@ -99,7 +100,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       title: "مستخلص مُرسل للاعتماد",
       message: `مستخلص ${extract.extractNumber} — ${extract.title}`,
       type: "extract",
-      link: `${process.env.WEB_ORIGIN ?? "http://localhost:3000"}/extracts/${id}`,
+      link: appPath(`/extracts/${id}`),
     });
   } else if (action === "manager_approve") {
     if (!canApproveExtractManager(user)) return errorResponse("ليس لديك صلاحية", 403);
