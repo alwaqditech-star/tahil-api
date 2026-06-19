@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { purchases } from "@/lib/schema";
 import { requireAuth, requireRole, type SessionUser } from "@/lib/auth";
+import { assertProjectScope } from "@/lib/access";
 import { errorResponse, jsonResponse, optionsResponse, emptyResponse } from "@/lib/cors";
 import { eq } from "drizzle-orm";
 
@@ -15,7 +16,18 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (!requireRole(user, "admin", "project_manager", "accountant")) return errorResponse("ليس لديك صلاحية", 403);
 
   const { id } = await params;
+  const purchaseId = parseInt(id);
+  const [existing] = await db.select().from(purchases).where(eq(purchases.id, purchaseId));
+  if (!existing) return errorResponse("غير موجود", 404);
+
+  const denied = await assertProjectScope(user, existing.projectId);
+  if (denied) return denied;
+
   const body = await request.json();
+  if (body.projectId) {
+    const deniedNew = await assertProjectScope(user, body.projectId);
+    if (deniedNew) return deniedNew;
+  }
 
   await db.update(purchases).set({
     supplierId: body.supplierId,
@@ -32,9 +44,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     actualDelivery: body.actualDelivery,
     notes: body.notes,
     updatedAt: new Date(),
-  }).where(eq(purchases.id, parseInt(id)));
+  }).where(eq(purchases.id, purchaseId));
 
-  const [row] = await db.select().from(purchases).where(eq(purchases.id, parseInt(id)));
+  const [row] = await db.select().from(purchases).where(eq(purchases.id, purchaseId));
   if (!row) return errorResponse("غير موجود", 404);
   return jsonResponse(row);
 }
@@ -46,6 +58,13 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   if (!requireRole(user, "admin")) return errorResponse("ليس لديك صلاحية", 403);
 
   const { id } = await params;
-  await db.delete(purchases).where(eq(purchases.id, parseInt(id)));
+  const purchaseId = parseInt(id);
+  const [existing] = await db.select().from(purchases).where(eq(purchases.id, purchaseId));
+  if (!existing) return errorResponse("غير موجود", 404);
+
+  const denied = await assertProjectScope(user, existing.projectId);
+  if (denied) return denied;
+
+  await db.delete(purchases).where(eq(purchases.id, purchaseId));
   return emptyResponse();
 }

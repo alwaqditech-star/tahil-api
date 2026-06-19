@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { projects, expenses, extracts } from "@/lib/schema";
-import { requireAuth, requireRole, getScopedProjectIds, type SessionUser } from "@/lib/auth";
+import { requireAuth, requireRole, getProjectModuleScopedIds, assertProjectModuleAccess, canPickProjectInForms, type SessionUser } from "@/lib/auth";
 import { errorResponse, jsonResponse, optionsResponse } from "@/lib/cors";
 import { eq, and, inArray, like, or, sql } from "drizzle-orm";
 
@@ -42,8 +42,18 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const status = url.searchParams.get("status");
   const search = url.searchParams.get("search");
+  const picker = url.searchParams.get("picker") === "true";
 
-  const scoped = await getScopedProjectIds(user);
+  if (picker) {
+    if (!canPickProjectInForms(user)) return errorResponse("ليس لديك صلاحية", 403);
+    const rows = await db.select({ id: projects.id, name: projects.name }).from(projects);
+    return jsonResponse(rows);
+  }
+
+  const denied = await assertProjectModuleAccess(user);
+  if (denied) return denied;
+
+  const scoped = await getProjectModuleScopedIds(user);
   const conditions = [];
   if (scoped !== null) {
     if (scoped.length === 0) return jsonResponse([]);

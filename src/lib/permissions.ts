@@ -1,5 +1,13 @@
 import type { SessionUser } from "./auth";
 
+export function canViewProjectsModule(user: SessionUser): boolean {
+  return user.role === "admin" || user.role === "project_manager" || user.role === "site_supervisor";
+}
+
+export function canPickProjectInForms(user: SessionUser): boolean {
+  return canViewProjectsModule(user) || user.role === "accountant";
+}
+
 export function canCreateResource(user: SessionUser, resource: string): boolean {
   const map: Record<string, string[]> = {
     projects: ["admin"],

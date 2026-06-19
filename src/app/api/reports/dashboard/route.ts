@@ -4,7 +4,7 @@ import {
   tasks,
 } from "@/lib/schema";
 import { requireAuth, getScopedProjectIds, type SessionUser } from "@/lib/auth";
-import { jsonResponse, optionsResponse, requestOrigin } from "@/lib/cors";
+import { optionsResponse, requestOrigin, corsHeadersFor } from "@/lib/cors";
 import { isDateBefore, todayISO } from "@/lib/dates";
 import { eq, and, inArray, sql, desc } from "drizzle-orm";
 
@@ -136,7 +136,7 @@ export async function GET(request: Request) {
     return { name: i.name, profit: estimated - executed, type: estimated - executed >= 0 ? "profit" : "loss" };
   }).sort((a, b) => Math.abs(b.profit) - Math.abs(a.profit)).slice(0, 5);
 
-  return jsonResponse({
+  return Response.json({
     totalProjects,
     activeProjects,
     delayedProjects,
@@ -157,5 +157,8 @@ export async function GET(request: Request) {
     topLossItems: itemProfitRows.filter((i) => i.type === "loss").slice(0, 3),
     recentExpenses: recentExpenses.map((e) => ({ ...e, amount: Number(e.amount) })),
     recentExtracts: recentExtracts.map((e) => ({ ...e, amount: Number(e.amount) })),
-  }, 200, origin);
+  }, {
+    status: 200,
+    headers: { ...corsHeadersFor(origin), "Cache-Control": "private, max-age=30" },
+  });
 }

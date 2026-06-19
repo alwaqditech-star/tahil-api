@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { projects, expenses, extracts } from "@/lib/schema";
-import { requireAuth, requireRole, getScopedProjectIds, type SessionUser } from "@/lib/auth";
+import { requireAuth, requireRole, assertProjectModuleAccess, type SessionUser } from "@/lib/auth";
 import { errorResponse, jsonResponse, optionsResponse, emptyResponse } from "@/lib/cors";
 import { eq, sql } from "drizzle-orm";
 
@@ -41,10 +41,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const projectId = parseInt(id);
 
-  const scoped = await getScopedProjectIds(user);
-  if (scoped !== null && !scoped.includes(projectId)) {
-    return errorResponse("ليس لديك صلاحية لعرض هذا المشروع", 403);
-  }
+  const denied = await assertProjectModuleAccess(user, projectId);
+  if (denied) return denied;
 
   const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
   if (!project) return errorResponse("المشروع غير موجود", 404);

@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { contracts, contractItems } from "@/lib/schema";
 import { requireAuth, type SessionUser } from "@/lib/auth";
+import { assertProjectScope } from "@/lib/access";
 import { canDeleteResource, canEditResource } from "@/lib/permissions";
 import { errorResponse, jsonResponse, optionsResponse, emptyResponse } from "@/lib/cors";
 import { eq } from "drizzle-orm";
@@ -12,12 +13,17 @@ export async function OPTIONS() {
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
+  const user = session as SessionUser;
   const { id } = await params;
+  const contractId = parseInt(id);
 
-  const [contract] = await db.select().from(contracts).where(eq(contracts.id, parseInt(id)));
+  const [contract] = await db.select().from(contracts).where(eq(contracts.id, contractId));
   if (!contract) return errorResponse("غير موجود", 404);
 
-  const items = await db.select().from(contractItems).where(eq(contractItems.contractId, parseInt(id)));
+  const denied = await assertProjectScope(user, contract.projectId);
+  if (denied) return denied;
+
+  const items = await db.select().from(contractItems).where(eq(contractItems.contractId, contractId));
 
   return jsonResponse({
     ...contract,
@@ -46,7 +52,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   if (!canDeleteResource(user)) return errorResponse("ليس لديك صلاحية", 403);
 
   const { id } = await params;
-  await db.delete(contractItems).where(eq(contractItems.contractId, parseInt(id)));
-  await db.delete(contracts).where(eq(contracts.id, parseInt(id)));
+  const contractId = parseInt(id);
+  const [existing] = await db.select().from(contracts).where(eq(contracts.id, contractId));
+  if (!existing) return errorResponse("غير موجود", 404);
+
+  const denied = await assertProjectScope(user, existing.projectId);
+  if (denied) return denied;
+
+  await db.delete(contractItems).where(eq(contractItems.contractId, contractId));
+  await db.delete(contracts).where(eq(contracts.id, contractId));
   return emptyResponse();
 }

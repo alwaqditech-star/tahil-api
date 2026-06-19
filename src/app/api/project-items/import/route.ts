@@ -1,7 +1,7 @@
 import * as XLSX from "xlsx";
 import { db } from "@/lib/db";
 import { projectItems } from "@/lib/schema";
-import { requireAuth, requireRole, getScopedProjectIds, type SessionUser } from "@/lib/auth";
+import { requireAuth, requireRole, assertProjectModuleAccess, type SessionUser } from "@/lib/auth";
 import { errorResponse, jsonResponse, optionsResponse } from "@/lib/cors";
 import { eq } from "drizzle-orm";
 
@@ -21,10 +21,8 @@ export async function POST(request: Request) {
 
   if (!file || !projectId) return errorResponse("الملف ومعرف المشروع مطلوبان", 400);
 
-  const scoped = await getScopedProjectIds(user);
-  if (scoped !== null && !scoped.includes(projectId)) {
-    return errorResponse("ليس لديك صلاحية", 403);
-  }
+  const denied = await assertProjectModuleAccess(user, projectId);
+  if (denied) return denied;
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const workbook = XLSX.read(buffer, { type: "buffer" });

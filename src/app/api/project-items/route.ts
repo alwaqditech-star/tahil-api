@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { projectItems, catalogItems } from "@/lib/schema";
-import { requireAuth, requireRole, getScopedProjectIds, type SessionUser } from "@/lib/auth";
+import { requireAuth, requireRole, assertProjectModuleAccess, type SessionUser } from "@/lib/auth";
 import { errorResponse, jsonResponse, optionsResponse, emptyResponse } from "@/lib/cors";
 import { eq, and, inArray } from "drizzle-orm";
 
@@ -32,10 +32,8 @@ export async function GET(request: Request) {
   const projectId = parseInt(url.searchParams.get("projectId") ?? "0");
   if (!projectId) return errorResponse("projectId مطلوب", 400);
 
-  const scoped = await getScopedProjectIds(user);
-  if (scoped !== null && !scoped.includes(projectId)) {
-    return errorResponse("ليس لديك صلاحية", 403);
-  }
+  const denied = await assertProjectModuleAccess(user, projectId);
+  if (denied) return denied;
 
   const rows = await db.select().from(projectItems).where(eq(projectItems.projectId, projectId));
   return jsonResponse(rows.map(mapItem));

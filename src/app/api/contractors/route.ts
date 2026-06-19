@@ -34,7 +34,7 @@ export async function GET(request: Request) {
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
   const user = session as SessionUser;
-  if (!requireRole(user, "admin", "project_manager", "accountant")) return errorResponse("ليس لديك صلاحية", 403);
+  if (!requireRole(user, "admin", "project_manager")) return errorResponse("ليس لديك صلاحية", 403);
 
   const rows = await db.select().from(contractors).orderBy(desc(contractors.createdAt));
 
