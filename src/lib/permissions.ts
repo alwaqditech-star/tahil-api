@@ -18,6 +18,10 @@ export function canViewContracts(user: SessionUser): boolean {
   return user.role === "admin" || user.role === "project_manager" || user.role === "accountant";
 }
 
+export function canViewContractors(user: SessionUser): boolean {
+  return user.role === "admin" || user.role === "project_manager" || user.role === "accountant";
+}
+
 export function canCreateResource(user: SessionUser, resource: string): boolean {
   const map: Record<string, string[]> = {
     projects: ["admin"],

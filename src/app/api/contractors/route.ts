@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { contractors, contractItems, extracts } from "@/lib/schema";
 import { requireAuth, requireRole, type SessionUser } from "@/lib/auth";
+import { canViewContractors } from "@/lib/permissions";
 import { errorResponse, jsonResponse, optionsResponse } from "@/lib/cors";
 import { desc, sql } from "drizzle-orm";
 
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
   const user = session as SessionUser;
-  if (!requireRole(user, "admin", "project_manager")) return errorResponse("ليس لديك صلاحية", 403);
+  if (!canViewContractors(user)) return errorResponse("ليس لديك صلاحية", 403);
 
   const rows = await db.select().from(contractors).orderBy(desc(contractors.createdAt));
 
