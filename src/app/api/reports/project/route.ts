@@ -46,6 +46,8 @@ export async function GET(request: Request) {
 
   const [
     [approvedExpR],
+    [allExpR],
+    [pendingExpR],
     [allExtR],
     [paidExtR],
     [purR],
@@ -55,6 +57,10 @@ export async function GET(request: Request) {
   ] = await Promise.all([
     db.select({ total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)` })
       .from(expenses).where(and(pid, eq(expenses.status, "approved"))),
+    db.select({ total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)` })
+      .from(expenses).where(pid),
+    db.select({ total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)` })
+      .from(expenses).where(and(pid, sql`${expenses.status} != 'approved'`)),
     db.select({ total: sql<string>`COALESCE(SUM(${extracts.amount}), 0)` })
       .from(extracts).where(xid),
     db.select({ total: sql<string>`COALESCE(SUM(${extracts.amount}), 0)` })
@@ -74,6 +80,8 @@ export async function GET(request: Request) {
   const contractValue = Number(project.contractValue);
   const budgetAllocated = Number(project.budgetAllocated);
   const approvedExpenses = Number(approvedExpR?.total ?? 0);
+  const totalExpensesAll = Number(allExpR?.total ?? 0);
+  const pendingExpenses = Number(pendingExpR?.total ?? 0);
   const totalExtracts = Number(allExtR?.total ?? 0);
   const paidExtracts = Number(paidExtR?.total ?? 0);
   const totalPurchases = Number(purR?.total ?? 0);
@@ -121,6 +129,9 @@ export async function GET(request: Request) {
     },
     summary: {
       totalExpenses: approvedExpenses,
+      totalExpensesAll,
+      pendingExpenses,
+      paidExpenses: approvedExpenses,
       totalExtracts,
       paidExtracts,
       profitMargin: pct(contractValue - approvedExpenses, contractValue),

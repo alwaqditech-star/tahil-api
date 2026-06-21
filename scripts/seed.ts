@@ -75,6 +75,7 @@ async function main() {
       { name: "خالد المحاسب", email: "accountant@jade.sa", username: "accountant4", passwordHash: accountantHash, role: "accountant", department: "المالية" },
       { name: "نورة المحاسبة", email: "accountant2@jade.sa", username: "accountant5", passwordHash: accountantHash, role: "accountant", department: "المالية" },
       { name: "فهد المشرف", email: "supervisor@jade.sa", username: "supervisor1", passwordHash: managerHash, role: "site_supervisor", department: "الموقع" },
+      { name: "محمد المهندس", email: "engineer@jade.sa", username: "engineer1", passwordHash: managerHash, role: "project_engineer", department: "المشاريع" },
     ]);
     freshUsers = await db.select().from(users);
   } else {

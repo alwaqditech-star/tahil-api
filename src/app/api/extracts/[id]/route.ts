@@ -36,6 +36,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
   const user = session as SessionUser;
+  if (user.role === "accountant") return errorResponse("ليس لديك صلاحية", 403);
 
   const { id } = await params;
   const extractId = parseInt(id);
@@ -62,12 +63,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
   const user = session as SessionUser;
-  if (!requireRole(user, "admin", "project_manager")) return errorResponse("ليس لديك صلاحية", 403);
 
   const { id } = await params;
   const extractId = parseInt(id);
   const [existing] = await db.select().from(extracts).where(eq(extracts.id, extractId));
   if (!existing) return errorResponse("غير موجود", 404);
+
+  if (!requireRole(user, "admin", "project_manager")
+    && !(user.role === "project_engineer" && existing.status === "draft")) {
+    return errorResponse("ليس لديك صلاحية", 403);
+  }
 
   const denied = await assertProjectScope(user, existing.projectId);
   if (denied) return denied;
@@ -113,7 +118,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (denied) return denied;
 
   if (action === "submit") {
-    if (!requireRole(user, "admin", "project_manager")) return errorResponse("ليس لديك صلاحية", 403);
+    if (!requireRole(user, "admin", "project_manager", "project_engineer")) return errorResponse("ليس لديك صلاحية", 403);
     if (Number(extract.amount) <= 0) return errorResponse("يجب إضافة بنود للمستخلص أولاً", 400);
     await db.update(extracts).set({ status: "submitted", submittedById: user.id, updatedAt: new Date() }).where(eq(extracts.id, extractId));
     await createNotification({

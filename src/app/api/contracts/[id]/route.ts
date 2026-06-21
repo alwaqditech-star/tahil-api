@@ -14,6 +14,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
   const user = session as SessionUser;
+  if (user.role === "accountant") return errorResponse("ليس لديك صلاحية", 403);
+
   const { id } = await params;
   const contractId = parseInt(id);
 

@@ -128,7 +128,9 @@ export function requireRole(user: SessionUser, ...roles: string[]): boolean {
 /** جميع المشاريع للتقارير والمالية (المحاسب يرى الإجماليات فقط، لا تفاصيل المشروع) */
 export async function getScopedProjectIds(user: SessionUser): Promise<number[] | null> {
   if (user.role === "admin" || user.role === "accountant") return null;
-  if (user.role === "site_supervisor" && user.assignedProjectId) return [user.assignedProjectId];
+  if ((user.role === "site_supervisor" || user.role === "project_engineer") && user.assignedProjectId) {
+    return [user.assignedProjectId];
+  }
   if (user.role === "project_manager") return user.assignedProjectIds;
   return [];
 }
@@ -136,13 +138,15 @@ export async function getScopedProjectIds(user: SessionUser): Promise<number[] |
 /** نطاق الوصول لوحدة إدارة المشاريع (بدون المحاسب) */
 export async function getProjectModuleScopedIds(user: SessionUser): Promise<number[] | null> {
   if (user.role === "admin") return null;
-  if (user.role === "site_supervisor" && user.assignedProjectId) return [user.assignedProjectId];
+  if ((user.role === "site_supervisor" || user.role === "project_engineer") && user.assignedProjectId) {
+    return [user.assignedProjectId];
+  }
   if (user.role === "project_manager") return user.assignedProjectIds;
   return [];
 }
 
 export function canViewProjectsModule(user: SessionUser): boolean {
-  return user.role === "admin" || user.role === "project_manager" || user.role === "site_supervisor";
+  return user.role === "admin" || user.role === "project_manager" || user.role === "site_supervisor" || user.role === "project_engineer";
 }
 
 export function canPickProjectInForms(user: SessionUser): boolean {

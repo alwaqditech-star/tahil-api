@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { pettyCash, projects, users } from "@/lib/schema";
 import { requireAuth, requireRole, type SessionUser } from "@/lib/auth";
+import { PETTY_CASH_RECIPIENT_ROLES } from "@/lib/permissions";
 import { createNotification } from "@/lib/notify";
 import { appPath } from "@/lib/web-url";
 import { errorResponse, jsonResponse, optionsResponse } from "@/lib/cors";
@@ -29,8 +30,8 @@ export async function GET(request: Request) {
 
   let rows = await db.select().from(pettyCash).orderBy(desc(pettyCash.createdAt));
 
-  // العهد على مستوى الموظف — كل مستخدم يرى عهدته فقط (ما عدا المدير والمحاسب)
-  if (user.role === "project_manager" || user.role === "site_supervisor") {
+  // العهد على مستوى الموظف — الميدان يرى عهدته فقط
+  if (user.role === "project_manager" || user.role === "site_supervisor" || user.role === "project_engineer") {
     rows = rows.filter((r) => r.assignedToId === user.id);
   }
 
@@ -56,8 +57,8 @@ export async function POST(request: Request) {
 
   // التحقق من المستلم (مدير مشاريع أو مشرف موقع)
   const [recipient] = await db.select().from(users).where(eq(users.id, body.assignedToId));
-  if (!recipient || !["project_manager", "site_supervisor"].includes(recipient.role)) {
-    return errorResponse("المستلم يجب أن يكون مدير مشاريع أو مشرف موقع", 400);
+  if (!recipient || !PETTY_CASH_RECIPIENT_ROLES.includes(recipient.role)) {
+    return errorResponse("المستلم يجب أن يكون مدير مشاريع أو مشرف موقع أو مهندس مشروع", 400);
   }
 
   await db.insert(pettyCash).values({

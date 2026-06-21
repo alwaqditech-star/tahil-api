@@ -30,6 +30,10 @@ export async function GET(request: Request) {
   if (session instanceof Response) return session;
   const user = session as SessionUser;
 
+  if (user.role === "accountant") {
+    return errorResponse("ليس لديك صلاحية لعرض العقود", 403);
+  }
+
   const url = new URL(request.url);
   const projectId = url.searchParams.get("projectId");
   const contractorId = url.searchParams.get("contractorId");

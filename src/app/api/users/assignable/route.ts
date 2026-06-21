@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
   const user = session as SessionUser;
-  if (user.role !== "admin" && user.role !== "project_manager") {
+  if (user.role !== "admin" && user.role !== "project_manager" && user.role !== "accountant") {
     return errorResponse("ليس لديك صلاحية", 403);
   }
 

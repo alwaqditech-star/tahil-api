@@ -1,11 +1,21 @@
 import type { SessionUser } from "./auth";
 
+export const PETTY_CASH_RECIPIENT_ROLES = ["project_manager", "site_supervisor", "project_engineer"];
+
 export function canViewProjectsModule(user: SessionUser): boolean {
-  return user.role === "admin" || user.role === "project_manager" || user.role === "site_supervisor";
+  return user.role === "admin" || user.role === "project_manager" || user.role === "site_supervisor" || user.role === "project_engineer";
 }
 
 export function canPickProjectInForms(user: SessionUser): boolean {
   return canViewProjectsModule(user) || user.role === "accountant";
+}
+
+export function canViewExtracts(user: SessionUser): boolean {
+  return user.role === "admin" || user.role === "project_manager" || user.role === "project_engineer";
+}
+
+export function canViewContracts(user: SessionUser): boolean {
+  return user.role === "admin" || user.role === "project_manager";
 }
 
 export function canCreateResource(user: SessionUser, resource: string): boolean {
@@ -13,9 +23,9 @@ export function canCreateResource(user: SessionUser, resource: string): boolean 
     projects: ["admin"],
     projectItems: ["admin"],
     catalogItems: ["admin", "project_manager"],
-    expenses: ["admin", "project_manager", "site_supervisor"],
+    expenses: ["admin", "project_manager", "site_supervisor", "project_engineer"],
     pettyCash: ["admin", "accountant"],
-    extracts: ["admin", "project_manager"],
+    extracts: ["admin", "project_manager", "project_engineer"],
     contractors: ["admin", "project_manager"],
     contracts: ["admin", "project_manager"],
     contractItems: ["admin", "project_manager"],
@@ -34,7 +44,7 @@ export function canEditResource(user: SessionUser, resource: string): boolean {
     catalogItems: ["admin", "project_manager"],
     expenses: ["admin", "project_manager"],
     pettyCash: ["admin", "accountant"],
-    extracts: ["admin", "project_manager"],
+    extracts: ["admin", "project_manager", "project_engineer"],
     contractors: ["admin", "project_manager"],
     contracts: ["admin", "project_manager"],
     contractItems: ["admin", "project_manager"],

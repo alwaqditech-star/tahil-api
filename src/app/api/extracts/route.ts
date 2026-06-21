@@ -33,7 +33,9 @@ export async function GET(request: Request) {
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
   const user = session as SessionUser;
-  if (!requireRole(user, "admin", "project_manager", "accountant")) return errorResponse("ليس لديك صلاحية", 403);
+  if (!requireRole(user, "admin", "project_manager", "project_engineer")) {
+    return errorResponse("ليس لديك صلاحية", 403);
+  }
 
   const scoped = await getScopedProjectIds(user);
   const rows = scoped !== null
@@ -60,7 +62,7 @@ export async function POST(request: Request) {
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
   const user = session as SessionUser;
-  if (!requireRole(user, "admin", "project_manager")) return errorResponse("ليس لديك صلاحية", 403);
+  if (!requireRole(user, "admin", "project_manager", "project_engineer")) return errorResponse("ليس لديك صلاحية", 403);
 
   const body = await request.json();
   const extractNumber = body.extractNumber ?? `EXT-${String(Date.now()).slice(-8)}`;
