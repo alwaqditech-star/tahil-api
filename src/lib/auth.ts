@@ -135,9 +135,9 @@ export async function getScopedProjectIds(user: SessionUser): Promise<number[] |
   return [];
 }
 
-/** نطاق الوصول لوحدة إدارة المشاريع (بدون المحاسب) */
+/** نطاق الوصول لوحدة إدارة المشاريع — المحاسب يرى كل المشاريع (عرض فقط) */
 export async function getProjectModuleScopedIds(user: SessionUser): Promise<number[] | null> {
-  if (user.role === "admin") return null;
+  if (user.role === "admin" || user.role === "accountant") return null;
   if ((user.role === "site_supervisor" || user.role === "project_engineer") && user.assignedProjectId) {
     return [user.assignedProjectId];
   }
@@ -146,7 +146,7 @@ export async function getProjectModuleScopedIds(user: SessionUser): Promise<numb
 }
 
 export function canViewProjectsModule(user: SessionUser): boolean {
-  return user.role === "admin" || user.role === "project_manager" || user.role === "site_supervisor" || user.role === "project_engineer";
+  return user.role === "admin" || user.role === "project_manager" || user.role === "site_supervisor" || user.role === "project_engineer" || user.role === "accountant";
 }
 
 export function canPickProjectInForms(user: SessionUser): boolean {

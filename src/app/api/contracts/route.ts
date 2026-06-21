@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { contracts, contractItems, contractors, projects, projectItems, catalogItems } from "@/lib/schema";
 import { requireAuth, getScopedProjectIds, type SessionUser } from "@/lib/auth";
-import { canCreateResource } from "@/lib/permissions";
+import { canCreateResource, canViewContracts } from "@/lib/permissions";
 import { errorResponse, jsonResponse, optionsResponse } from "@/lib/cors";
 import { eq, desc } from "drizzle-orm";
 
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   if (session instanceof Response) return session;
   const user = session as SessionUser;
 
-  if (user.role === "accountant") {
+  if (!canViewContracts(user)) {
     return errorResponse("ليس لديك صلاحية لعرض العقود", 403);
   }
 

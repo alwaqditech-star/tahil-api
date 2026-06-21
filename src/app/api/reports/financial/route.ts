@@ -4,6 +4,7 @@ import {
   contractors, suppliers, contracts,
 } from "@/lib/schema";
 import { requireAuth, getScopedProjectIds, type SessionUser } from "@/lib/auth";
+import { parseReportFilters, dateRangeParts } from "@/lib/report-filters";
 import { jsonResponse, optionsResponse, requestOrigin } from "@/lib/cors";
 import { eq, and, inArray, sql, desc } from "drizzle-orm";
 
@@ -44,15 +45,15 @@ export async function GET(request: Request) {
   const user = session as SessionUser;
 
   const url = new URL(request.url);
-  const projectIdParam = url.searchParams.get("projectId");
-  const selectedProjectId = projectIdParam && projectIdParam !== "all"
-    ? Number(projectIdParam)
-    : null;
+  const { selectedProjectId, fromDate, toDate } = parseReportFilters(url);
 
   const scoped = await getScopedProjectIds(user);
   const expenseFilter = buildProjectFilter(scoped, selectedProjectId, expenses.projectId);
   const extractFilter = buildProjectFilter(scoped, selectedProjectId, extracts.projectId);
   const purchaseFilter = buildProjectFilter(scoped, selectedProjectId, purchases.projectId);
+  const expDateParts = dateRangeParts(expenses.expenseDate, fromDate, toDate);
+  const extDateParts = dateRangeParts(extracts.extractDate, fromDate, toDate);
+  const purDateParts = dateRangeParts(purchases.orderDate, fromDate, toDate);
   const allProjectsFilter = buildProjectFilter(scoped, null, projects.id);
   const allProjectRows = await db.select({ id: projects.id, name: projects.name }).from(projects).where(allProjectsFilter);
 
@@ -62,11 +63,13 @@ export async function GET(request: Request) {
   const projectIds = projectRows.map((p) => p.id);
   const projectMap = Object.fromEntries(projectRows.map((p) => [p.id, p.name]));
 
+  const pettyDateParts = dateRangeParts(pettyCash.issuedDate, fromDate, toDate);
   const pettyFilter = selectedProjectId
     ? eq(pettyCash.projectId, selectedProjectId)
     : scoped !== null
       ? (scoped.length ? inArray(pettyCash.projectId, scoped) : sql`1=0`)
       : sql`1=1`;
+  const pettyWhere = pettyDateParts.length ? and(pettyFilter, ...pettyDateParts) : pettyFilter;
 
   const [
     [expR],
@@ -85,30 +88,30 @@ export async function GET(request: Request) {
     contractRows,
   ] = await Promise.all([
     db.select({ total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)` })
-      .from(expenses).where(and(expenseFilter, eq(expenses.status, "approved"))),
+      .from(expenses).where(and(expenseFilter, eq(expenses.status, "approved"), ...expDateParts)),
     db.select({ total: sql<string>`COALESCE(SUM(${extracts.amount}), 0)` })
-      .from(extracts).where(and(extractFilter, sql`${extracts.status} IN ('approved','paid')`)),
+      .from(extracts).where(and(extractFilter, sql`${extracts.status} IN ('approved','paid')`, ...extDateParts)),
     db.select({ total: sql<string>`COALESCE(SUM(${purchases.amount}), 0)` })
-      .from(purchases).where(purchaseFilter),
+      .from(purchases).where(and(purchaseFilter, ...purDateParts)),
     db.select({
       month: sql<number>`MONTH(${expenses.expenseDate})`,
       total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)`,
-    }).from(expenses).where(and(expenseFilter, eq(expenses.status, "approved")))
+    }).from(expenses).where(and(expenseFilter, eq(expenses.status, "approved"), ...expDateParts))
       .groupBy(sql`MONTH(${expenses.expenseDate})`),
     db.select({
       month: sql<number>`MONTH(${extracts.extractDate})`,
       total: sql<string>`COALESCE(SUM(${extracts.amount}), 0)`,
-    }).from(extracts).where(and(extractFilter, sql`${extracts.status} IN ('approved','paid')`))
+    }).from(extracts).where(and(extractFilter, sql`${extracts.status} IN ('approved','paid')`, ...extDateParts))
       .groupBy(sql`MONTH(${extracts.extractDate})`),
     db.select({
       month: sql<number>`MONTH(${purchases.orderDate})`,
       total: sql<string>`COALESCE(SUM(${purchases.amount}), 0)`,
-    }).from(purchases).where(purchaseFilter)
+    }).from(purchases).where(and(purchaseFilter, ...purDateParts))
       .groupBy(sql`MONTH(${purchases.orderDate})`),
     db.select({
       category: expenses.category,
       total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)`,
-    }).from(expenses).where(and(expenseFilter, eq(expenses.status, "approved")))
+    }).from(expenses).where(and(expenseFilter, eq(expenses.status, "approved"), ...expDateParts))
       .groupBy(expenses.category),
     db.select({
       id: expenses.id,
@@ -119,7 +122,7 @@ export async function GET(request: Request) {
       projectId: expenses.projectId,
       expenseDate: expenses.expenseDate,
       submittedBy: expenses.submittedBy,
-    }).from(expenses).where(expenseFilter).orderBy(desc(expenses.expenseDate)).limit(100),
+    }).from(expenses).where(and(expenseFilter, ...expDateParts)).orderBy(desc(expenses.expenseDate)).limit(100),
     db.select({
       id: extracts.id,
       title: extracts.title,
@@ -129,7 +132,7 @@ export async function GET(request: Request) {
       contractorId: extracts.contractorId,
       extractDate: extracts.extractDate,
       extractNumber: extracts.extractNumber,
-    }).from(extracts).where(extractFilter).orderBy(desc(extracts.extractDate)).limit(100),
+    }).from(extracts).where(and(extractFilter, ...extDateParts)).orderBy(desc(extracts.extractDate)).limit(100),
     db.select({
       id: purchases.id,
       title: purchases.title,
@@ -140,7 +143,7 @@ export async function GET(request: Request) {
       supplierId: purchases.supplierId,
       orderDate: purchases.orderDate,
       purchaseNumber: purchases.purchaseNumber,
-    }).from(purchases).where(purchaseFilter).orderBy(desc(purchases.orderDate)).limit(100),
+    }).from(purchases).where(and(purchaseFilter, ...purDateParts)).orderBy(desc(purchases.orderDate)).limit(100),
     db.select({
       contractorId: extracts.contractorId,
       total: sql<string>`COALESCE(SUM(${extracts.amount}), 0)`,
@@ -157,7 +160,7 @@ export async function GET(request: Request) {
       count: sql<number>`COUNT(*)`,
       allocated: sql<string>`COALESCE(SUM(${pettyCash.allocatedAmount}), 0)`,
       used: sql<string>`COALESCE(SUM(${pettyCash.usedAmount}), 0)`,
-    }).from(pettyCash).where(pettyFilter).groupBy(pettyCash.assignedToId, pettyCash.assignedTo),
+    }).from(pettyCash).where(pettyWhere).groupBy(pettyCash.assignedToId, pettyCash.assignedTo),
     projectIds.length
       ? db.select({
           contractorId: contracts.contractorId,

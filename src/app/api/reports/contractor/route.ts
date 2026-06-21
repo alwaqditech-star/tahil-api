@@ -3,8 +3,9 @@ import {
   contractors, contractItems, extracts, contracts, projects,
 } from "@/lib/schema";
 import { requireAuth, type SessionUser } from "@/lib/auth";
+import { parseReportFilters, dateRangeParts } from "@/lib/report-filters";
 import { errorResponse, jsonResponse, optionsResponse, requestOrigin } from "@/lib/cors";
-import { eq, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 
 export const maxDuration = 30;
 
@@ -38,13 +39,22 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const contractorId = parseInt(url.searchParams.get("contractorId") ?? "0", 10);
   if (!contractorId) return errorResponse("contractorId مطلوب", 400);
+  const { selectedProjectId, fromDate, toDate, status } = parseReportFilters(url);
 
   const [contractor] = await db.select().from(contractors).where(eq(contractors.id, contractorId));
   if (!contractor) return errorResponse("المقاول غير موجود", 404);
 
+  const extractConditions = [eq(extracts.contractorId, contractorId)];
+  if (selectedProjectId) extractConditions.push(eq(extracts.projectId, selectedProjectId));
+  if (status) extractConditions.push(eq(extracts.status, status));
+  extractConditions.push(...dateRangeParts(extracts.extractDate, fromDate, toDate));
+
+  const itemConditions = [eq(contractItems.contractorId, contractorId)];
+  if (selectedProjectId) itemConditions.push(eq(contractItems.projectId, selectedProjectId));
+
   const [items, extractRows, contractRows, projectRows] = await Promise.all([
-    db.select().from(contractItems).where(eq(contractItems.contractorId, contractorId)),
-    db.select().from(extracts).where(eq(extracts.contractorId, contractorId)).orderBy(desc(extracts.extractDate)),
+    db.select().from(contractItems).where(and(...itemConditions)),
+    db.select().from(extracts).where(and(...extractConditions)).orderBy(desc(extracts.extractDate)),
     db.select().from(contracts).where(eq(contracts.contractorId, contractorId)),
     db.select({ id: projects.id, name: projects.name }).from(projects),
   ]);

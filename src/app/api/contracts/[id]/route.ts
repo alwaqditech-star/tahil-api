@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { contracts, contractItems } from "@/lib/schema";
 import { requireAuth, type SessionUser } from "@/lib/auth";
 import { assertProjectScope } from "@/lib/access";
-import { canDeleteResource, canEditResource } from "@/lib/permissions";
+import { canDeleteResource, canEditResource, canViewContracts } from "@/lib/permissions";
 import { errorResponse, jsonResponse, optionsResponse, emptyResponse } from "@/lib/cors";
 import { eq } from "drizzle-orm";
 
@@ -14,7 +14,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
   const user = session as SessionUser;
-  if (user.role === "accountant") return errorResponse("ليس لديك صلاحية", 403);
+  if (!canViewContracts(user)) return errorResponse("ليس لديك صلاحية", 403);
 
   const { id } = await params;
   const contractId = parseInt(id);

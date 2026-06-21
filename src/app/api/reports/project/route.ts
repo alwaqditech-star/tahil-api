@@ -3,6 +3,7 @@ import {
   projects, expenses, extracts, pettyCash, purchases, projectItems,
 } from "@/lib/schema";
 import { requireAuth, getScopedProjectIds, type SessionUser } from "@/lib/auth";
+import { parseReportFilters, dateRangeParts } from "@/lib/report-filters";
 import { errorResponse, jsonResponse, optionsResponse, requestOrigin } from "@/lib/cors";
 import { eq, and, sql } from "drizzle-orm";
 
@@ -30,6 +31,11 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const projectId = parseInt(url.searchParams.get("projectId") ?? "0", 10);
   if (!projectId) return errorResponse("projectId مطلوب", 400);
+  const { fromDate, toDate } = parseReportFilters(url);
+  const expDateParts = dateRangeParts(expenses.expenseDate, fromDate, toDate);
+  const extDateParts = dateRangeParts(extracts.extractDate, fromDate, toDate);
+  const purDateParts = dateRangeParts(purchases.orderDate, fromDate, toDate);
+  const pettyDateParts = dateRangeParts(pettyCash.issuedDate, fromDate, toDate);
 
   const scoped = await getScopedProjectIds(user);
   if (scoped !== null && !scoped.includes(projectId)) {
@@ -56,23 +62,23 @@ export async function GET(request: Request) {
     items,
   ] = await Promise.all([
     db.select({ total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)` })
-      .from(expenses).where(and(pid, eq(expenses.status, "approved"))),
+      .from(expenses).where(and(pid, eq(expenses.status, "approved"), ...expDateParts)),
     db.select({ total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)` })
-      .from(expenses).where(pid),
+      .from(expenses).where(and(pid, ...expDateParts)),
     db.select({ total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)` })
-      .from(expenses).where(and(pid, sql`${expenses.status} != 'approved'`)),
+      .from(expenses).where(and(pid, sql`${expenses.status} != 'approved'`, ...expDateParts)),
     db.select({ total: sql<string>`COALESCE(SUM(${extracts.amount}), 0)` })
-      .from(extracts).where(xid),
+      .from(extracts).where(and(xid, ...extDateParts)),
     db.select({ total: sql<string>`COALESCE(SUM(${extracts.amount}), 0)` })
-      .from(extracts).where(and(xid, eq(extracts.status, "paid"))),
+      .from(extracts).where(and(xid, eq(extracts.status, "paid"), ...extDateParts)),
     db.select({ total: sql<string>`COALESCE(SUM(${purchases.amount}), 0)` })
-      .from(purchases).where(purid),
+      .from(purchases).where(and(purid, ...purDateParts)),
     db.select({ total: sql<string>`COALESCE(SUM(${pettyCash.usedAmount}), 0)` })
-      .from(pettyCash).where(pettyid),
+      .from(pettyCash).where(pettyDateParts.length ? and(pettyid, ...pettyDateParts) : pettyid),
     db.select({
       category: expenses.category,
       total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)`,
-    }).from(expenses).where(and(pid, eq(expenses.status, "approved")))
+    }).from(expenses).where(and(pid, eq(expenses.status, "approved"), ...expDateParts))
       .groupBy(expenses.category),
     db.select().from(projectItems).where(eq(projectItems.projectId, projectId)),
   ]);

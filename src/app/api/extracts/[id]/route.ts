@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { extracts, extractLineItems, contractItems, projects, contractors } from "@/lib/schema";
 import { requireAuth, requireRole, type SessionUser } from "@/lib/auth";
 import { assertProjectScope } from "@/lib/access";
-import { canApproveExtractManager, canApproveExtractAccountant } from "@/lib/permissions";
+import { canApproveExtractManager, canApproveExtractAccountant, canViewExtracts } from "@/lib/permissions";
 import { createNotification } from "@/lib/notify";
 import { appPath } from "@/lib/web-url";
 import { errorResponse, jsonResponse, optionsResponse, emptyResponse } from "@/lib/cors";
@@ -36,7 +36,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
   const user = session as SessionUser;
-  if (user.role === "accountant") return errorResponse("ليس لديك صلاحية", 403);
+  if (!canViewExtracts(user)) return errorResponse("ليس لديك صلاحية", 403);
 
   const { id } = await params;
   const extractId = parseInt(id);

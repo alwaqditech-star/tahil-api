@@ -3,7 +3,7 @@ import type { SessionUser } from "./auth";
 export const PETTY_CASH_RECIPIENT_ROLES = ["project_manager", "site_supervisor", "project_engineer"];
 
 export function canViewProjectsModule(user: SessionUser): boolean {
-  return user.role === "admin" || user.role === "project_manager" || user.role === "site_supervisor" || user.role === "project_engineer";
+  return user.role === "admin" || user.role === "project_manager" || user.role === "site_supervisor" || user.role === "project_engineer" || user.role === "accountant";
 }
 
 export function canPickProjectInForms(user: SessionUser): boolean {
@@ -11,11 +11,11 @@ export function canPickProjectInForms(user: SessionUser): boolean {
 }
 
 export function canViewExtracts(user: SessionUser): boolean {
-  return user.role === "admin" || user.role === "project_manager" || user.role === "project_engineer";
+  return user.role === "admin" || user.role === "project_manager" || user.role === "project_engineer" || user.role === "accountant";
 }
 
 export function canViewContracts(user: SessionUser): boolean {
-  return user.role === "admin" || user.role === "project_manager";
+  return user.role === "admin" || user.role === "project_manager" || user.role === "accountant";
 }
 
 export function canCreateResource(user: SessionUser, resource: string): boolean {

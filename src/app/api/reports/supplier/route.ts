@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
 import { suppliers, purchases, projects } from "@/lib/schema";
 import { requireAuth, type SessionUser } from "@/lib/auth";
+import { parseReportFilters, dateRangeParts } from "@/lib/report-filters";
 import { errorResponse, jsonResponse, optionsResponse, requestOrigin } from "@/lib/cors";
-import { eq, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 
 export const maxDuration = 30;
 
@@ -18,12 +19,17 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const supplierId = parseInt(url.searchParams.get("supplierId") ?? "0", 10);
   if (!supplierId) return errorResponse("supplierId مطلوب", 400);
+  const { selectedProjectId, fromDate, toDate } = parseReportFilters(url);
 
   const [supplier] = await db.select().from(suppliers).where(eq(suppliers.id, supplierId));
   if (!supplier) return errorResponse("المورد غير موجود", 404);
 
+  const purchaseConditions = [eq(purchases.supplierId, supplierId)];
+  if (selectedProjectId) purchaseConditions.push(eq(purchases.projectId, selectedProjectId));
+  purchaseConditions.push(...dateRangeParts(purchases.orderDate, fromDate, toDate));
+
   const [purchaseRows, projectRows] = await Promise.all([
-    db.select().from(purchases).where(eq(purchases.supplierId, supplierId)).orderBy(desc(purchases.orderDate)),
+    db.select().from(purchases).where(and(...purchaseConditions)).orderBy(desc(purchases.orderDate)),
     db.select({ id: projects.id, name: projects.name }).from(projects),
   ]);
 

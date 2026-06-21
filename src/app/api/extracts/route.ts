@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { extracts, projects, contractors } from "@/lib/schema";
 import { requireAuth, requireRole, getScopedProjectIds, type SessionUser } from "@/lib/auth";
+import { canViewExtracts } from "@/lib/permissions";
 import { errorResponse, jsonResponse, optionsResponse } from "@/lib/cors";
 import { eq, and, inArray, desc } from "drizzle-orm";
 
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
   const user = session as SessionUser;
-  if (!requireRole(user, "admin", "project_manager", "project_engineer")) {
+  if (!canViewExtracts(user)) {
     return errorResponse("ليس لديك صلاحية", 403);
   }
 
