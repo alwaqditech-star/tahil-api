@@ -8,7 +8,20 @@ import {
   timestamp,
   date,
   uniqueIndex,
+  customType,
 } from "drizzle-orm/mysql-core";
+
+const mediumBlob = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "mediumblob";
+  },
+  fromDriver(value: Buffer) {
+    return value;
+  },
+  toDriver(value: Buffer) {
+    return value;
+  },
+});
 
 export const users = mysqlTable("users", {
   id: int("id").primaryKey().autoincrement(),
@@ -278,4 +291,14 @@ export const extractLineItems = mysqlTable("extract_line_items", {
   quantity: decimal("quantity", { precision: 15, scale: 3 }).notNull().default("0"),
   unitPrice: decimal("unit_price", { precision: 15, scale: 2 }).notNull().default("0"),
   amount: decimal("amount", { precision: 15, scale: 2 }).notNull().default("0"),
+});
+
+export const fileUploads = mysqlTable("file_uploads", {
+  id: int("id").primaryKey().autoincrement(),
+  filename: varchar("filename", { length: 255 }).notNull(),
+  mimeType: varchar("mime_type", { length: 127 }).notNull(),
+  size: int("size").notNull(),
+  data: mediumBlob("data").notNull(),
+  createdById: int("created_by_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });

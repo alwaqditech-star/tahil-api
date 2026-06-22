@@ -78,6 +78,12 @@ export async function clearAuthCookie() {
 export async function getTokenFromRequest(request: Request) {
   const auth = request.headers.get("authorization");
   if (auth?.startsWith("Bearer ")) return auth.slice(7);
+  try {
+    const qToken = new URL(request.url).searchParams.get("access_token");
+    if (qToken) return qToken;
+  } catch {
+    /* ignore */
+  }
   const cookieHeader = request.headers.get("cookie") ?? "";
   const match = cookieHeader.match(new RegExp(`${COOKIE_NAME}=([^;]+)`));
   return match?.[1] ?? null;
