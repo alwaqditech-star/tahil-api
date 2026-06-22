@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { projects, expenses, extracts, tasks, users, projectAssignments } from "@/lib/schema";
 import { requireAuth, type SessionUser } from "@/lib/auth";
+import { canRunSmartTasks } from "@/lib/permissions";
 import { createNotification } from "@/lib/notify";
 import { appPath } from "@/lib/web-url";
 import { jsonResponse, optionsResponse } from "@/lib/cors";
@@ -11,12 +12,12 @@ export async function OPTIONS() {
   return optionsResponse();
 }
 
-/** إنشاء مهام تلقائية — للإدارة فقط */
+/** إنشاء مهام تلقائية — للإدارة والمحاسب */
 export async function POST(request: Request) {
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
   const user = session as SessionUser;
-  if (user.role !== "admin") return jsonResponse({ error: "ليس لديك صلاحية" }, 403);
+  if (!canRunSmartTasks(user)) return jsonResponse({ error: "ليس لديك صلاحية" }, 403);
 
   const today = todayDateOnly();
   const todayStr = todayISO();

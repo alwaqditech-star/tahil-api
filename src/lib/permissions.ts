@@ -25,8 +25,8 @@ export function canViewContractors(user: SessionUser): boolean {
 export function canCreateResource(user: SessionUser, resource: string): boolean {
   const map: Record<string, string[]> = {
     projects: ["admin"],
-    projectItems: ["admin"],
-    catalogItems: ["admin", "project_manager"],
+    projectItems: ["admin", "accountant"],
+    catalogItems: ["admin", "project_manager", "accountant"],
     expenses: ["admin", "project_manager", "site_supervisor", "project_engineer"],
     pettyCash: ["admin", "accountant"],
     extracts: ["admin", "project_manager", "project_engineer"],
@@ -44,8 +44,8 @@ export function canCreateResource(user: SessionUser, resource: string): boolean 
 export function canEditResource(user: SessionUser, resource: string): boolean {
   const map: Record<string, string[]> = {
     projects: ["admin"],
-    projectItems: ["admin"],
-    catalogItems: ["admin", "project_manager"],
+    projectItems: ["admin", "accountant"],
+    catalogItems: ["admin", "project_manager", "accountant"],
     expenses: ["admin", "project_manager"],
     pettyCash: ["admin", "accountant"],
     extracts: ["admin", "project_manager", "project_engineer"],
@@ -69,7 +69,7 @@ export function canManagerApproveExpense(user: SessionUser): boolean {
 }
 
 export function canAccountantApproveExpense(user: SessionUser): boolean {
-  return user.role === "admin" || user.role === "accountant";
+  return user.role === "accountant";
 }
 
 export function canApproveExtractManager(user: SessionUser): boolean {
@@ -77,7 +77,7 @@ export function canApproveExtractManager(user: SessionUser): boolean {
 }
 
 export function canApproveExtractAccountant(user: SessionUser): boolean {
-  return user.role === "admin" || user.role === "accountant";
+  return user.role === "accountant";
 }
 
 export function canManageTask(user: SessionUser, task: { assigneeId: number; createdById: number; projectId?: number | null }, assignedProjectIds: number[]): boolean {
@@ -89,6 +89,10 @@ export function canManageTask(user: SessionUser, task: { assigneeId: number; cre
 
 export function canCreateTaskFor(user: SessionUser): boolean {
   return user.role === "admin" || user.role === "project_manager" || user.role === "accountant";
+}
+
+export function canRunSmartTasks(user: SessionUser): boolean {
+  return user.role === "admin" || user.role === "accountant";
 }
 
 export function canViewAllTasks(user: SessionUser): boolean {

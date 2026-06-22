@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { projectItems } from "@/lib/schema";
-import { requireAuth, requireRole, type SessionUser } from "@/lib/auth";
+import { requireAuth, type SessionUser } from "@/lib/auth";
+import { canEditResource, canDeleteResource } from "@/lib/permissions";
 import { errorResponse, jsonResponse, optionsResponse, emptyResponse } from "@/lib/cors";
 import { eq } from "drizzle-orm";
 
@@ -12,7 +13,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
   const user = session as SessionUser;
-  if (!requireRole(user, "admin")) return errorResponse("ليس لديك صلاحية", 403);
+  if (!canEditResource(user, "projectItems")) return errorResponse("ليس لديك صلاحية", 403);
 
   const { id } = await params;
   const body = await request.json();
@@ -34,7 +35,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
   const user = session as SessionUser;
-  if (!requireRole(user, "admin")) return errorResponse("ليس لديك صلاحية", 403);
+  if (!canDeleteResource(user)) return errorResponse("ليس لديك صلاحية", 403);
 
   const { id } = await params;
   await db.delete(projectItems).where(eq(projectItems.id, parseInt(id)));

@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { projectItems, catalogItems } from "@/lib/schema";
-import { requireAuth, requireRole, assertProjectModuleAccess, type SessionUser } from "@/lib/auth";
+import { requireAuth, assertProjectModuleAccess, type SessionUser } from "@/lib/auth";
+import { canCreateResource, canEditResource, canDeleteResource } from "@/lib/permissions";
 import { errorResponse, jsonResponse, optionsResponse, emptyResponse } from "@/lib/cors";
 import { eq, and, inArray } from "drizzle-orm";
 
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
   const user = session as SessionUser;
-  if (!requireRole(user, "admin")) return errorResponse("ليس لديك صلاحية", 403);
+  if (!canCreateResource(user, "projectItems")) return errorResponse("ليس لديك صلاحية", 403);
 
   const body = await request.json();
 

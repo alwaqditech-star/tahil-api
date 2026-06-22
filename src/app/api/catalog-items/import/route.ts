@@ -1,7 +1,8 @@
 import * as XLSX from "xlsx";
 import { db } from "@/lib/db";
 import { catalogItems } from "@/lib/schema";
-import { requireAuth, requireRole, type SessionUser } from "@/lib/auth";
+import { canCreateResource } from "@/lib/permissions";
+import { requireAuth, type SessionUser } from "@/lib/auth";
 import { errorResponse, jsonResponse, optionsResponse } from "@/lib/cors";
 
 export async function OPTIONS() {
@@ -12,7 +13,7 @@ export async function POST(request: Request) {
   const session = await requireAuth(request);
   if (session instanceof Response) return session;
   const user = session as SessionUser;
-  if (!requireRole(user, "admin", "project_manager")) {
+  if (!canCreateResource(user, "catalogItems")) {
     return errorResponse("ليس لديك صلاحية", 403);
   }
 
