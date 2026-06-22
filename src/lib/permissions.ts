@@ -31,12 +31,12 @@ export function canCreateResource(user: SessionUser, resource: string): boolean 
     pettyCash: ["admin", "accountant"],
     extracts: ["admin", "project_manager", "project_engineer"],
     contractors: ["admin", "project_manager"],
-    contracts: ["admin", "project_manager"],
+    contracts: ["admin", "project_manager", "accountant"],
     contractItems: ["admin", "project_manager"],
     suppliers: ["admin", "project_manager"],
     purchases: ["admin", "project_manager"],
     users: ["admin"],
-    tasks: ["admin", "project_manager"],
+    tasks: ["admin", "project_manager", "accountant"],
   };
   return map[resource]?.includes(user.role) ?? false;
 }
@@ -50,7 +50,7 @@ export function canEditResource(user: SessionUser, resource: string): boolean {
     pettyCash: ["admin", "accountant"],
     extracts: ["admin", "project_manager", "project_engineer"],
     contractors: ["admin", "project_manager"],
-    contracts: ["admin", "project_manager"],
+    contracts: ["admin", "project_manager", "accountant"],
     contractItems: ["admin", "project_manager"],
     suppliers: ["admin", "project_manager"],
     purchases: ["admin", "project_manager"],
@@ -88,7 +88,7 @@ export function canManageTask(user: SessionUser, task: { assigneeId: number; cre
 }
 
 export function canCreateTaskFor(user: SessionUser): boolean {
-  return user.role === "admin" || user.role === "project_manager";
+  return user.role === "admin" || user.role === "project_manager" || user.role === "accountant";
 }
 
 export function canViewAllTasks(user: SessionUser): boolean {
