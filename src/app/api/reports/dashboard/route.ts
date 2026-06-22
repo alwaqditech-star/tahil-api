@@ -6,6 +6,7 @@ import {
 import { requireAuth, getScopedProjectIds, type SessionUser } from "@/lib/auth";
 import { optionsResponse, requestOrigin, corsHeadersFor } from "@/lib/cors";
 import { isDateBefore, todayISO } from "@/lib/dates";
+import { calcProfitMargin, sumProjectCosts, EXTRACT_COST_STATUSES } from "@/lib/project-financials";
 import { eq, and, inArray, sql, desc } from "drizzle-orm";
 
 export const maxDuration = 30;
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
     [myTasksCountR],
   ] = await Promise.all([
     db.select({ total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)` }).from(expenses).where(and(projectFilter, eq(expenses.status, "approved"))),
-    db.select({ total: sql<string>`COALESCE(SUM(${extracts.amount}), 0)` }).from(extracts).where(extractFilter),
+    db.select({ total: sql<string>`COALESCE(SUM(${extracts.amount}), 0)` }).from(extracts).where(and(extractFilter, inArray(extracts.status, [...EXTRACT_COST_STATUSES]))),
     db.select({ total: sql<string>`COALESCE(SUM(${purchases.amount}), 0)` }).from(purchases).where(purchaseFilter),
     db.select({ count: sql<number>`COUNT(*)` }).from(expenses).where(and(projectFilter, eq(expenses.status, "pending"))),
     db.select({ count: sql<number>`COUNT(*)` }).from(extracts).where(and(extractFilter, sql`${extracts.status} IN ('draft','submitted','manager_approved')`)),
@@ -79,7 +80,7 @@ export async function GET(request: Request) {
       : Promise.resolve([]),
     projectIds.length
       ? db.select({ projectId: extracts.projectId, total: sql<string>`COALESCE(SUM(${extracts.amount}), 0)` })
-          .from(extracts).where(inArray(extracts.projectId, projectIds)).groupBy(extracts.projectId)
+          .from(extracts).where(and(inArray(extracts.projectId, projectIds), inArray(extracts.status, [...EXTRACT_COST_STATUSES]))).groupBy(extracts.projectId)
       : Promise.resolve([]),
     projectIds.length
       ? db.select({ projectId: purchases.projectId, total: sql<string>`COALESCE(SUM(${purchases.amount}), 0)` })
@@ -108,17 +109,17 @@ export async function GET(request: Request) {
   const totalExpenses = Number(expR?.total ?? 0);
   const totalExtracts = Number(extR?.total ?? 0);
   const totalPurchases = Number(purR?.total ?? 0);
-  const totalCosts = totalExpenses + totalExtracts + totalPurchases;
+  const totalCosts = sumProjectCosts(totalExpenses, totalExtracts, totalPurchases);
   const expectedProfit = totalContractValue - totalCosts;
   const actualProfit = expectedProfit;
-  const overallProfitMargin = totalContractValue > 0 ? (actualProfit / totalContractValue) * 100 : 0;
+  const overallProfitMargin = calcProfitMargin(totalContractValue, totalCosts);
 
   const topProjects = projectRows.slice(0, 5).map((p) => {
     const e = expByP.get(p.id) ?? 0;
     const x = extByP.get(p.id) ?? 0;
     const pu = purByP.get(p.id) ?? 0;
     const cv = Number(p.contractValue);
-    const costs = e + x + pu;
+    const costs = sumProjectCosts(e, x, pu);
     return {
       projectId: p.id,
       projectName: p.name,
@@ -126,7 +127,7 @@ export async function GET(request: Request) {
       progressPercent: p.progressPercent,
       totalExpenses: e,
       totalCosts: costs,
-      profitMargin: cv > 0 ? Math.round(((cv - costs) / cv) * 10000) / 100 : 0,
+      profitMargin: calcProfitMargin(cv, costs),
     };
   });
 

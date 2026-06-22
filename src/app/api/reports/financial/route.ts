@@ -5,6 +5,7 @@ import {
 } from "@/lib/schema";
 import { requireAuth, getScopedProjectIds, type SessionUser } from "@/lib/auth";
 import { parseReportFilters, dateRangeParts } from "@/lib/report-filters";
+import { calcProfitMargin, sumProjectCosts, EXTRACT_COST_STATUSES } from "@/lib/project-financials";
 import { jsonResponse, optionsResponse, requestOrigin } from "@/lib/cors";
 import { eq, and, inArray, sql, desc } from "drizzle-orm";
 
@@ -172,7 +173,7 @@ export async function GET(request: Request) {
   const totalRevenue = projectRows.reduce((s, p) => s + Number(p.contractValue), 0);
   const totalExpenses = Number(expR?.total ?? 0) + Number(extR?.total ?? 0) + Number(purR?.total ?? 0);
   const totalProfit = totalRevenue - totalExpenses;
-  const profitMargin = pct(totalProfit, totalRevenue);
+  const profitMargin = calcProfitMargin(totalRevenue, totalExpenses);
 
   const expByMonth = new Map(expenseMonthly.map((r) => [Number(r.month), Number(r.total)]));
   const extByMonth = new Map(extractMonthly.map((r) => [Number(r.month), Number(r.total)]));
@@ -207,7 +208,8 @@ export async function GET(request: Request) {
     ? await db.select({
         projectId: extracts.projectId,
         total: sql<string>`COALESCE(SUM(${extracts.amount}), 0)`,
-      }).from(extracts).where(inArray(extracts.projectId, projectIds)).groupBy(extracts.projectId)
+      }).from(extracts).where(and(inArray(extracts.projectId, projectIds), inArray(extracts.status, [...EXTRACT_COST_STATUSES])))
+        .groupBy(extracts.projectId)
     : [];
 
   const purchaseByProject = projectIds.length
@@ -226,7 +228,7 @@ export async function GET(request: Request) {
     const exp = expPMap[p.id] ?? 0;
     const ext = extPMap[p.id] ?? 0;
     const pur = purPMap[p.id] ?? 0;
-    const costs = exp + ext + pur;
+    const costs = sumProjectCosts(exp, ext, pur);
     return {
       id: p.id,
       name: p.name,
@@ -238,7 +240,7 @@ export async function GET(request: Request) {
       purchases: pur,
       totalCosts: costs,
       profit: cv - costs,
-      profitMargin: pct(cv - costs, cv),
+      profitMargin: calcProfitMargin(cv, costs),
       progressPercent: p.progressPercent,
     };
   }).sort((a, b) => b.contractValue - a.contractValue);

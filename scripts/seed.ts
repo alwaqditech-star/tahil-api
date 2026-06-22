@@ -1,5 +1,5 @@
 /**
- * إعادة تعبئة البيانات — يحافظ على جدول users كما هو
+ * مسح كامل لقاعدة البيانات وإعادة تعبئتها ببيانات تجريبية واقعية
  * Usage: npm run db:seed
  */
 import { drizzle } from "drizzle-orm/mysql2";
@@ -28,7 +28,11 @@ const {
 const TABLES_TO_CLEAR = [
   "extract_line_items",
   "extracts",
+  "tasks",
+  "notifications",
+  "file_uploads",
   "purchases",
+  "contracts",
   "contract_items",
   "project_items",
   "expenses",
@@ -39,13 +43,14 @@ const TABLES_TO_CLEAR = [
   "projects",
   "contractors",
   "suppliers",
+  "users",
 ];
 
 async function main() {
   const pool = mysql.createPool(getMysqlPoolConfig());
   const db = drizzle(pool, { schema, mode: "default" });
 
-  console.log("🗑️  مسح جميع البيانات (ما عدا المستخدمين)...");
+  console.log("🗑️  مسح جميع البيانات من قاعدة البيانات...");
   await db.execute(sql`SET FOREIGN_KEY_CHECKS = 0`);
   for (const t of TABLES_TO_CLEAR) {
     try {
@@ -60,27 +65,22 @@ async function main() {
   }
   await db.execute(sql`SET FOREIGN_KEY_CHECKS = 1`);
 
-  let freshUsers = await db.select().from(users);
-  if (freshUsers.length === 0) {
-    console.log("👤 لا يوجد مستخدمون — إنشاء الحسابات الافتراضية...");
-    const bcrypt = await import("bcryptjs");
-    const adminHash = await bcrypt.hash("admin123", 10);
-    const managerHash = await bcrypt.hash("manager123", 10);
-    const accountantHash = await bcrypt.hash("accountant123", 10);
+  console.log("👤 إنشاء المستخدمين...");
+  const bcrypt = await import("bcryptjs");
+  const adminHash = await bcrypt.hash("admin123", 10);
+  const managerHash = await bcrypt.hash("manager123", 10);
+  const accountantHash = await bcrypt.hash("accountant123", 10);
 
-    await db.insert(users).values([
-      { name: "مدير النظام", email: "admin@jade.sa", username: "admin", passwordHash: adminHash, role: "admin", department: "الإدارة" },
-      { name: "أحمد المنصوري", email: "manager@jade.sa", username: "manager2", passwordHash: managerHash, role: "project_manager", department: "المشاريع" },
-      { name: "سارة العتيبي", email: "manager2@jade.sa", username: "manager3", passwordHash: managerHash, role: "project_manager", department: "المشاريع" },
-      { name: "خالد المحاسب", email: "accountant@jade.sa", username: "accountant4", passwordHash: accountantHash, role: "accountant", department: "المالية" },
-      { name: "نورة المحاسبة", email: "accountant2@jade.sa", username: "accountant5", passwordHash: accountantHash, role: "accountant", department: "المالية" },
-      { name: "فهد المشرف", email: "supervisor@jade.sa", username: "supervisor1", passwordHash: managerHash, role: "site_supervisor", department: "الموقع" },
-      { name: "محمد المهندس", email: "engineer@jade.sa", username: "engineer1", passwordHash: managerHash, role: "project_engineer", department: "المشاريع" },
-    ]);
-    freshUsers = await db.select().from(users);
-  } else {
-    console.log(`👤 تم الاحتفاظ بـ ${freshUsers.length} مستخدم موجود`);
-  }
+  await db.insert(users).values([
+    { name: "مدير النظام", email: "admin@jade.sa", username: "admin", passwordHash: adminHash, role: "admin", department: "الإدارة" },
+    { name: "أحمد المنصوري", email: "manager@jade.sa", username: "manager2", passwordHash: managerHash, role: "project_manager", department: "المشاريع" },
+    { name: "سارة العتيبي", email: "manager2@jade.sa", username: "manager3", passwordHash: managerHash, role: "project_manager", department: "المشاريع" },
+    { name: "خالد المحاسب", email: "accountant@jade.sa", username: "accountant4", passwordHash: accountantHash, role: "accountant", department: "المالية" },
+    { name: "نورة المحاسبة", email: "accountant2@jade.sa", username: "accountant5", passwordHash: accountantHash, role: "accountant", department: "المالية" },
+    { name: "فهد المشرف", email: "supervisor@jade.sa", username: "supervisor1", passwordHash: managerHash, role: "site_supervisor", department: "الموقع" },
+    { name: "محمد المهندس", email: "engineer@jade.sa", username: "engineer1", passwordHash: managerHash, role: "project_engineer", department: "المشاريع" },
+  ]);
+  const freshUsers = await db.select().from(users);
 
   if (freshUsers.length === 0) {
     console.error("❌ فشل إعداد المستخدمين");
@@ -94,6 +94,7 @@ async function main() {
   const accountant4 = byUsername["accountant4"] ?? freshUsers.find((u) => u.role === "accountant")!;
   const accountant5 = byUsername["accountant5"] ?? freshUsers.filter((u) => u.role === "accountant")[1] ?? accountant4;
   const supervisor1 = byUsername["supervisor1"] ?? freshUsers.find((u) => u.role === "site_supervisor") ?? manager2;
+  const engineer1 = byUsername["engineer1"] ?? freshUsers.find((u) => u.role === "project_engineer") ?? manager2;
 
   // ─── المشاريع ───────────────────────────────────────────────
   console.log("🏗️  إدخال المشاريع...");
@@ -112,19 +113,24 @@ async function main() {
     { name: "ترميم قصر التراث", description: "ترميم وإعادة تأهيل تراثي", client: "هيئة التراث", location: "الدرعية - البجيري", status: "active", startDate: "2025-04-01", endDate: "2026-10-31", contractValue: "9800000", budgetAllocated: "8500000", progressPercent: 22 },
   ]);
 
-  // إسناد المشاريع
+  // إسناد المشاريع — مشروع واحد لكل مدير مشاريع
   await db.insert(projectAssignments).values([
-    { userId: manager2.id, projectId: 1 }, { userId: manager2.id, projectId: 2 },
-    { userId: manager2.id, projectId: 6 }, { userId: manager2.id, projectId: 7 },
-    { userId: manager3.id, projectId: 3 }, { userId: manager3.id, projectId: 5 },
-    { userId: manager3.id, projectId: 9 }, { userId: manager3.id, projectId: 10 },
+    { userId: manager2.id, projectId: 1 },
+    { userId: manager2.id, projectId: 2 },
+    { userId: manager2.id, projectId: 4 },
+    { userId: manager2.id, projectId: 6 },
+    { userId: manager2.id, projectId: 7 },
+    { userId: manager2.id, projectId: 11 },
+    { userId: manager3.id, projectId: 3 },
+    { userId: manager3.id, projectId: 5 },
+    { userId: manager3.id, projectId: 8 },
+    { userId: manager3.id, projectId: 9 },
+    { userId: manager3.id, projectId: 10 },
     { userId: manager3.id, projectId: 12 },
   ]);
 
-  // تحديث مشرف الموقع
-  if (supervisor1.id) {
-    await db.update(users).set({ assignedProjectId: 1 }).where(eq(users.id, supervisor1.id));
-  }
+  await db.update(users).set({ assignedProjectId: 1 }).where(eq(users.id, supervisor1.id));
+  await db.update(users).set({ assignedProjectId: 2 }).where(eq(users.id, engineer1.id));
 
   // ─── فئات المصروفات ───────────────────────────────────────
   console.log("📂 فئات المصروفات...");
@@ -414,9 +420,16 @@ async function main() {
     });
   }
 
-  console.log("\n✅ تمت إعادة تعبئة البيانات بنجاح (المستخدمون محفوظون)!");
-  console.log("   📊 12 مشروع | 18 بند BOQ | 12 مقاول | 15 بند مقاول");
+  console.log("\n✅ تم مسح قاعدة البيانات وإعادة تعبئتها بنجاح!");
+  console.log("   👤 7 مستخدمين | 📊 12 مشروع | 18 بند BOQ | 12 مقاول | 15 بند مقاول");
   console.log("   📊 15 مورد | 15 مشتري | 25 مصروف | 10 عهد | 15 مستخلص");
+  console.log("\n   حسابات الدخول:");
+  console.log("   admin / admin123");
+  console.log("   manager2 / manager123  (أحمد — 6 مشاريع)");
+  console.log("   manager3 / manager123  (سارة — 6 مشاريع)");
+  console.log("   accountant4 / accountant123");
+  console.log("   supervisor1 / manager123  (مشروع برج الياسمين)");
+  console.log("   engineer1 / manager123  (مشروع مجمع النخيل)");
   await pool.end();
 }
 

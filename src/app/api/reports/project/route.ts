@@ -4,8 +4,9 @@ import {
 } from "@/lib/schema";
 import { requireAuth, getScopedProjectIds, type SessionUser } from "@/lib/auth";
 import { parseReportFilters, dateRangeParts } from "@/lib/report-filters";
+import { calcProfitMargin, sumProjectCosts, EXTRACT_COST_STATUSES } from "@/lib/project-financials";
 import { errorResponse, jsonResponse, optionsResponse, requestOrigin } from "@/lib/cors";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 
 export const maxDuration = 30;
 
@@ -56,6 +57,7 @@ export async function GET(request: Request) {
     [pendingExpR],
     [allExtR],
     [paidExtR],
+    [costExtR],
     [purR],
     [pettyUsedR],
     categoryRows,
@@ -71,6 +73,8 @@ export async function GET(request: Request) {
       .from(extracts).where(and(xid, ...extDateParts)),
     db.select({ total: sql<string>`COALESCE(SUM(${extracts.amount}), 0)` })
       .from(extracts).where(and(xid, eq(extracts.status, "paid"), ...extDateParts)),
+    db.select({ total: sql<string>`COALESCE(SUM(${extracts.amount}), 0)` })
+      .from(extracts).where(and(xid, inArray(extracts.status, [...EXTRACT_COST_STATUSES]), ...extDateParts)),
     db.select({ total: sql<string>`COALESCE(SUM(${purchases.amount}), 0)` })
       .from(purchases).where(and(purid, ...purDateParts)),
     db.select({ total: sql<string>`COALESCE(SUM(${pettyCash.usedAmount}), 0)` })
@@ -90,8 +94,11 @@ export async function GET(request: Request) {
   const pendingExpenses = Number(pendingExpR?.total ?? 0);
   const totalExtracts = Number(allExtR?.total ?? 0);
   const paidExtracts = Number(paidExtR?.total ?? 0);
+  const costExtracts = Number(costExtR?.total ?? 0);
   const totalPurchases = Number(purR?.total ?? 0);
   const pettyCashUsed = Number(pettyUsedR?.total ?? 0);
+  const totalCosts = sumProjectCosts(approvedExpenses, costExtracts, totalPurchases);
+  const profit = contractValue - totalCosts;
 
   const categoryTotal = categoryRows.reduce((s, r) => s + Number(r.total), 0);
   const expensesByCategory = categoryRows
@@ -140,10 +147,13 @@ export async function GET(request: Request) {
       paidExpenses: approvedExpenses,
       totalExtracts,
       paidExtracts,
-      profitMargin: pct(contractValue - approvedExpenses, contractValue),
+      costExtracts,
+      totalPurchases,
+      totalCosts,
+      profit,
+      profitMargin: calcProfitMargin(contractValue, totalCosts),
       itemsCount: items.length,
       budgetConsumptionPercent: pct(approvedExpenses, budgetAllocated),
-      totalPurchases,
       pettyCashUsed,
     },
     expensesByCategory,
