@@ -40,7 +40,7 @@ export const projectAssignments = mysqlTable("project_assignments", {
   id: int("id").primaryKey().autoincrement(),
   userId: int("user_id").notNull(),
   projectId: int("project_id").notNull(),
-});
+}, (t) => [uniqueIndex("project_assignments_project_idx").on(t.projectId)]);
 
 export const projects = mysqlTable("projects", {
   id: int("id").primaryKey().autoincrement(),

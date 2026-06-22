@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/schema";
 import { requireAuth, requireRole, hashPassword, type SessionUser } from "@/lib/auth";
 import { errorResponse, jsonResponse, optionsResponse } from "@/lib/cors";
-import { getAssignedProjectIdsByUserIds } from "@/lib/user-projects";
+import { getAssignedProjectIdsByUserIds, ProjectAssignmentConflictError } from "@/lib/user-projects";
 import { applyProjectLinks } from "@/lib/user-project-links";
 import { desc, eq } from "drizzle-orm";
 
@@ -70,12 +70,18 @@ export async function POST(request: Request) {
   const [created] = await db.select().from(users).orderBy(desc(users.id)).limit(1);
   if (!created) return errorResponse("فشل الإنشاء", 500);
 
-  await applyProjectLinks(
-    created.id,
-    role,
-    body.assignedProjectId,
-    body.assignedProjectIds,
-  );
+  try {
+    await applyProjectLinks(
+      created.id,
+      role,
+      body.assignedProjectId,
+      body.assignedProjectIds,
+    );
+  } catch (err) {
+    await db.delete(users).where(eq(users.id, created.id));
+    if (err instanceof ProjectAssignmentConflictError) return errorResponse(err.message, 409);
+    throw err;
+  }
 
   const [updated] = await db.select().from(users).where(eq(users.id, created.id));
   const assignedProjectIds = role === "project_manager"

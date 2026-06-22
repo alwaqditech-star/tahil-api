@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/schema";
 import { requireAuth, requireRole, hashPassword, type SessionUser } from "@/lib/auth";
 import { errorResponse, jsonResponse, optionsResponse, emptyResponse } from "@/lib/cors";
-import { getAssignedProjectIdsByUserIds } from "@/lib/user-projects";
+import { getAssignedProjectIdsByUserIds, ProjectAssignmentConflictError } from "@/lib/user-projects";
 import { applyProjectLinks } from "@/lib/user-project-links";
 import { eq } from "drizzle-orm";
 
@@ -50,7 +50,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   await db.update(users).set(update).where(eq(users.id, userId));
 
-  await applyProjectLinks(userId, role, body.assignedProjectId, body.assignedProjectIds);
+  try {
+    await applyProjectLinks(userId, role, body.assignedProjectId, body.assignedProjectIds);
+  } catch (err) {
+    if (err instanceof ProjectAssignmentConflictError) return errorResponse(err.message, 409);
+    throw err;
+  }
 
   const [row] = await db.select().from(users).where(eq(users.id, userId));
   if (!row) return errorResponse("غير موجود", 404);

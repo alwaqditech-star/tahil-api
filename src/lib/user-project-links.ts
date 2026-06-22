@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { users } from "./schema";
-import { syncProjectAssignments } from "./user-projects";
+import { syncProjectAssignments, assertProjectsAvailableForManager } from "./user-projects";
 import { eq } from "drizzle-orm";
 
 export async function applyProjectLinks(
@@ -13,6 +13,7 @@ export async function applyProjectLinks(
     const ids = Array.isArray(assignedProjectIds)
       ? assignedProjectIds.map((v) => Number(v)).filter((n) => n > 0)
       : [];
+    await assertProjectsAvailableForManager(userId, ids);
     await syncProjectAssignments(userId, ids);
     await db.update(users).set({ assignedProjectId: null }).where(eq(users.id, userId));
     return;
